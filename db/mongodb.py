@@ -6,8 +6,6 @@
 
 import time
 import json
-import base64
-import hashlib
 import datetime
 from voluptuous import Schema
 from bson.json_util import dumps
@@ -17,10 +15,9 @@ import pymongo.results
 import pymongo.command_cursor
 from pymongo import UpdateOne, InsertOne, DeleteOne
 
-from config import settings, decorator
+from config import settings
 from db.base import BaseModel, QueryMode
 from db.base import DBConfigExistError, QueryModeError, FindOneIdError, ProjectError
-from microserver.db.mongodb import MongoDB
 
 
 class MongoDBModel(BaseModel):

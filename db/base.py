@@ -1,10 +1,14 @@
-# @Time    : 2018/4/7 下午5:57
-# @Author  : Niyoufa
+# -*- coding: utf-8 -*-
+# @Author:  SmokedInk
+# @Title:   base
+# @Time:    2019-11-26 14:13:23
+# @Desc:    base
+
 import math
 from abc import ABCMeta, abstractmethod
 from bson import ObjectId
-from microserver.core.exceptions import HandlerError, ArgumentTypeError
-from microserver.utils.collections import BaseEnum
+from config.exceptions import HandlerError, ArgumentTypeError
+from config.collections import BaseEnum
 
 
 class QueryMode(BaseEnum):
