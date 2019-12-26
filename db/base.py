@@ -8,7 +8,7 @@ import math
 from abc import ABCMeta, abstractmethod
 from bson import ObjectId
 from config.exceptions import HandlerError, ArgumentTypeError
-from config.collections import BaseEnum
+from config.collection import BaseEnum
 
 
 class QueryMode(BaseEnum):
