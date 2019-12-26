@@ -4,12 +4,8 @@
 # @Time:    2019-11-02 11:24:01
 
 import requests
+from retrying import retry
 from requests.adapters import HTTPAdapter
-
-import urllib3
-import socket
-urllib3.disable_warnings()
-socket.setdefaulttimeout(10)    # 设置socket层的超时时间为10秒
 
 
 req = requests.Session()
@@ -17,6 +13,7 @@ req.mount("http://", HTTPAdapter(max_retries=3))
 req.mount("https://", HTTPAdapter(max_retries=3))
 
 
+@retry(stop_max_attempt_number=3)
 def send_get_request(request_url, request_headers, proxies='', **kwargs):
     """
     requests的get请求封装
@@ -28,9 +25,9 @@ def send_get_request(request_url, request_headers, proxies='', **kwargs):
     kwargs.setdefault('allow_redirects', True)
     try:
         if proxies == "":
-            response = req.get(url=request_url, headers=request_headers, timeout=(5, 30), **kwargs)
+            response = requests.get(url=request_url, headers=request_headers, timeout=(5, 30), **kwargs)
         else:
-            response = req.get(url=request_url, headers=request_headers, timeout=(5, 30), proxies=proxies, **kwargs)
+            response = requests.get(url=request_url, headers=request_headers, timeout=(5, 30), proxies=proxies, **kwargs)
         response.close()
         return response
     except requests.exceptions.RequestException as err:

@@ -64,7 +64,7 @@ def select_total():
     cur.execute('SELECT * FROM proxy where effectiveness="连接正常"')
     ip_list = []
     for eachOne in cur.fetchall():
-        ip_list.append(eachOne[0])
+        ip_list.append((eachOne[0], eachOne[2], eachOne[3]))
     close(cur, conn)
     return ip_list
 

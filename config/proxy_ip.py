@@ -27,14 +27,20 @@ IP验证网站
 
 # 检测网站URL
 detection_url_list = [
+    "http://httpbin.org/get",
     "http://www.89ip.cn/check.html",
-    "http://icanhazip.com/",
-    "http://httpbin.org/get"
+    "http://icanhazip.com/"
 ]
-detection_url = random.sample(detection_url_list, 1)[0]
 headers = {
     "User-Agent": get_useragent()
 }
+
+random_num = random.random()
+
+ZDY_cookie = 'acw_tc=76b20f7215770022478591548e14600a8c98c3a192bfaf540f3125c01eac0b; __51cke__=; Hm_lvt_80f407a85cf0bc32ab5f9cc91c15f88b=1577002249; acw_sc__v2=5dff255b43eea97064d05582bcdb249f33e2595e; ASPSESSIONIDSEQRCRBQ=BKFPCPIDOBCEOCPFPGDBAGOM; __tins__16949115=%7B%22sid%22%3A%201577002248841%2C%20%22vd%22%3A%202%2C%20%22expires%22%3A%201577004146820%7D; __51laig__=2; acw_sc__v3=5dff256bae9a58773595b64fb69a699efb40c66b; Hm_lpvt_80f407a85cf0bc32ab5f9cc91c15f88b=1577002347'
+
+# 检测通道ID
+CHANNEL_ID = 1
 
 proxy_list = []
 failure_ip_list = []
@@ -56,48 +62,90 @@ def get_89ip_ip_list():
     获取IP代理
     :return: 代理列表
     """
-    ip_url = "http://www.89ip.cn/tqdl.html?api=1&num=30&port=&address=&isp="
-    ip_rsp = send_get_request(ip_url, headers)
-    ip_text = ip_rsp.text.replace("\n", "")
+    ip_list = list()
+    ip_url = f"http://www.89ip.cn/index_1.html"
+    ip_rsp = send_get_request(ip_url, headers).content.decode()
+    etree_html = etree.HTML(ip_rsp)
+    ips = etree_html.xpath("//table[@class='layui-table']//tr/td[1]/text()")
+    ports = etree_html.xpath("//table[@class='layui-table']//tr/td[2]/text()")
+    locations = etree_html.xpath("//table[@class='layui-table']//tr/td[3]/text()")
+    operators = etree_html.xpath("//table[@class='layui-table']//tr/td[4]/text()")
+    for ip, port, location, operator in zip(ips, ports, locations, operators):
+        # print(f"{ip.strip()}:{port.strip()}", location.strip(), operator.strip())
+        ip_list.append((f"{ip.strip()}:{port.strip()}", location.strip(), operator.strip()))
+    return ip_list
 
-    # 匹配数据
-    ips = re.findall(";</script>(.*?)高效", ip_text)[0]
-    ip_list = ips.split("<br>")[:-1]
+
+def get_kuaidaili_ip_list():
+    """
+    获取快代理免费IP
+    :return: 代理列表
+    """
+    ip_list = list()
+    ip_index_url = f"https://www.kuaidaili.com/free/inha/1/"
+    ip_index_rsp = send_get_request(ip_index_url, headers).content.decode()
+    etree_obj = etree.HTML(ip_index_rsp)
+    ips = etree_obj.xpath("//table/tbody/tr/td[1]/text()")
+    ports = etree_obj.xpath("//table/tbody/tr/td[2]/text()")
+    places = etree_obj.xpath("//table/tbody/tr/td[5]/text()")
+    for ip, port, place in zip(ips, ports, places):
+        place_split = place.split(" ")
+        location = " ".join(place_split[:-1])
+        operator = place_split[-1]
+        # print(f"{ip}:{port}", location, operator)
+        ip_list.append((f"{ip}:{port}", location, operator))
     return ip_list
 
 
 def get_zdaye_ip_list():
     """
-    获取站大爷IP代理
+    获取站大爷免费IP
     :return: 代理列表
     """
     ip_articles_url = "https://www.zdaye.com/dayProxy.html"
+    headers['Cookie'] = ZDY_cookie
     ip_articles_rsp = send_get_request(ip_articles_url, headers, verify=False).content.decode()
     etree_text = etree.HTML(ip_articles_rsp)
-    ip_article_url = "https://www.zdaye.com" + etree_text.xpath("//div[@class='thread_item'][1]//h3/a/@href")[0]
-
-    ip_rsp = send_get_request(ip_article_url, headers).content.decode()
-    print(ip_rsp)
+    ip_article_url = "https://www.zdaye.com" + etree_text.xpath("//div[@class='thread_item'][1]/div/h3/a/@href")[0]
+    print(ip_article_url)
+    ip_rsp = send_get_request(ip_article_url, headers, verify=False).content.decode()
     rest = etree.HTML(ip_rsp)
     ips = rest.xpath('//div[@class="cont"]/text()')
-    print(ips)
     ip_list = []
     for ip in ips:
-        print(ip)
-        ip = ip.split("@")
-        ip_list.append(ip)
-        print(ip)
-    print(ip_list)
+        ip_str = ip.split("@")
+        ip = ip_str[0]
+        location = re.findall(r"](.*?) ", ip_str[1])[0]
+        operator = re.findall(r" (.*?)$", ip_str[1])[0]
+        ip_list.append((ip, location, operator))
+        print(ip, location, operator)
+    return ip_list
 
 
-def ip_detection(ip):
-    """
-    代理IP检测
-    :param ip: 待检测代理IP
-    :return: None
-    """
+def detection_channel_01(host_info):
+    proxies = {
+        "http": "http://" + host_info[0],
+        "https": "https://" + host_info[0],
+    }
+    try:
+        rsp = send_get_request(detection_url_list[0], headers, proxies)
+        ip = host_info[0].split(':')[0]
+        if rsp.status_code == 200 and ip in rsp.content.decode():
+            print("{}-->通过检测，检测状态：{}".format(host_info[0], "连接正常"))
+            ip_result = (host_info[0], "连接正常", host_info[1], host_info[2], get_now_time())
+            proxy_list.append(ip_result)
+            normal_ip_list.append((get_now_time(), host_info[0]))
+        else:
+            print("{}-->未通过检测，检测状态：{}".format(host_info[0], "无法连接"))
+            failure_ip_list.append((get_now_time(), host_info[0]))
+    except Exception as err:
+        print("{}-->通过检测失败, 错误为: {}".format(host_info[0], err))
+        failure_ip_list.append((get_now_time(), host_info[0]))
+
+
+def detection_channel_02(host_info):
     detection_data = {
-        "proxy": ip,
+        "proxy": host_info[0],
         "type": 1
     }
     detection_rsp = send_data_request(detection_url_list[0], headers, detection_data)
@@ -107,19 +155,32 @@ def ip_detection(ip):
             if "无法连接" not in detection_rsp.text:
                 results_str = detection_rsp.text.split("<br>")
                 effectiveness = results_str[0].split("：")[1]
-                location = results_str[1].split("：")[1]
-                operator = results_str[2].split("：")[1]
-                print("{}-->通过检测，检测状态：{}".format(ip, status))
-                ip_result = (ip, effectiveness, location, operator, get_now_time())
+                print("{}-->通过检测，检测状态：{}".format(host_info[0], status))
+                ip_result = (host_info[0], effectiveness, host_info[1], host_info[2], get_now_time())
                 proxy_list.append(ip_result)
-                normal_ip_list.append((get_now_time(), ip))
+                normal_ip_list.append((get_now_time(), host_info[0]))
             else:
-                print("{}-->未通过检测，检测状态：{}".format(ip, status))
-                failure_ip_list.append((get_now_time(), ip))
+                print("{}-->未通过检测，检测状态：{}".format(host_info[0], status))
+                failure_ip_list.append((get_now_time(), host_info[0]))
         else:
             print("检测失败")
     except AttributeError as err:
         print(err)
+
+
+def ip_detection(host_info, channel_id):
+    """
+    代理IP检测
+    :param host_info: 待检测代理IP信息
+    :param channel_id: 通道id
+    :return: None
+    """
+    if channel_id == 1:
+        detection_channel_01(host_info)
+    elif channel_id == 2:
+        detection_channel_02(host_info)
+    else:
+        print("暂未开放")
 
 
 def new_ip_detection():
@@ -127,15 +188,18 @@ def new_ip_detection():
     新增代理IP检测
     :return: None
     """
-    ip_list = get_89ip_ip_list()
+    proxy_list.clear()
+    ip_info_list = get_89ip_ip_list()
     threads = []
-    for host in ip_list:
-        th = threading.Thread(target=ip_detection, args=(host,))
-        th.setDaemon(True)
-        th.start()
-        threads.append(th)
-    for t in threads:
-        t.join()
+    for ip_info in ip_info_list:
+        ip_detection(ip_info, CHANNEL_ID)
+        time.sleep(random_num)
+    #     th = threading.Thread(target=ip_detection, args=(ip_info, CHANNEL_ID,))
+    #     th.setDaemon(True)
+    #     th.start()
+    #     threads.append(th)
+    # for t in threads:
+    #     t.join()
     create_many(proxy_list)
 
 
@@ -146,13 +210,15 @@ def sql_ip_detection():
     """
     ip_list = select_total()
     threads = []
-    for host in ip_list:
-        th = threading.Thread(target=ip_detection, args=(host,))
-        th.setDaemon(True)
-        th.start()
-        threads.append(th)
-    for t in threads:
-        t.join()
+    for ip_info in ip_list:
+        ip_detection(ip_info, CHANNEL_ID)
+        time.sleep(random_num)
+    #     th = threading.Thread(target=ip_detection, args=(ip_info, CHANNEL_ID,))
+    #     th.setDaemon(True)
+    #     th.start()
+    #     threads.append(th)
+    # for t in threads:
+    #     t.join()
     ip_desc_dict = {
         "normal_ip_list": normal_ip_list,
         "failure_ip_list": failure_ip_list
@@ -176,7 +242,7 @@ def get_proxies():
     print("当前代理IP为：{proxies}".format(proxies=host))
     proxies = {
         "http": "http://" + host,
-        "https": "http://" + host,
+        "https": "https://" + host,
     }
     return proxies
 
@@ -199,4 +265,5 @@ if __name__ == '__main__':
     # automation()
     # new_ip_detection()
     sql_ip_detection()
+    # get_89ip_ip_list()
     # get_zdaye_ip_list()
