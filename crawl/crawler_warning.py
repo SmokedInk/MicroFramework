@@ -101,4 +101,5 @@ class CrawlerPhoneWarning(object):
 
 if __name__ == '__main__':
     text = "【视频爬虫】爬虫在第16行报错，报错信息为：读写错误"
-    CrawlerPhoneWarning(text).run()
+    CrawlerEmailWarning(text).run()
+    # CrawlerPhoneWarning(text).run()
